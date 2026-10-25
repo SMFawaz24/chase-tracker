@@ -1,0 +1,10 @@
+pandas
+pyarrow
+requests
+xgboost
+scikit-learn
+matplotlib
+sqlalchemy
+psycopg2-binary
+fastapi
+uvicorn
