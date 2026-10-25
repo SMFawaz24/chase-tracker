@@ -1,0 +1,12 @@
+{
+  "train_balls": 122857,
+  "test_balls": 16166,
+  "test_seasons": [
+    "2025",
+    "2026"
+  ],
+  "log_loss": 0.5760479547181429,
+  "log_loss_baseline": 0.6892149390798271,
+  "brier": 0.17419539307966342,
+  "brier_baseline": 0.24803487665972507
+}

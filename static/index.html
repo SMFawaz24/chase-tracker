@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Chase tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #08141d;
+    --panel: #0e2130;
+    --line: #1c3547;
+    --text: #e9f1f7;
+    --muted: #8aa2b4;
+    --chase: #ffb43b;   /* floodlight amber: the chasing side */
+    --defend: #35a7ff;  /* night-sky blue: the defending side */
+    --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+  body { margin: 0; color: var(--text); background: var(--ink); font: 400 16px/1.55 var(--body); }
+  :focus-visible { outline: 2px solid var(--chase); outline-offset: 2px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  /* top bar */
+  .bar { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .brand { font: 800 26px/1 var(--display); letter-spacing: .02em; }
+  .brand small { display: block; font: 400 13px/1.4 var(--body); letter-spacing: 0; color: var(--muted); margin-top: 4px; }
+  .pickers { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pickers label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px; }
+  select, input[type=number] {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    padding: 9px 12px; font: 500 15px var(--body); min-width: 0;
+  }
+  #match { width: min(430px, 82vw); }
+  #season { width: 110px; }
+
+  /* scoreboard hero */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; padding: 36px 0 28px; align-items: end; }
+  .fixture h1 { margin: 0; font: 800 clamp(30px, 5vw, 46px)/1.02 var(--display); letter-spacing: .01em; }
+  .fixture h1 span { color: var(--chase); }
+  .fixture p { margin: 8px 0 0; color: var(--muted); max-width: 46ch; }
+  .pct { display: flex; align-items: baseline; gap: 6px; margin-top: 18px; font-family: var(--display); font-weight: 900; line-height: .85; }
+  .pct b { font-size: clamp(96px, 17vw, 176px); font-variant-numeric: tabular-nums; transition: color .25s; }
+  .pct i { font-style: normal; font-size: clamp(36px, 6vw, 64px); color: var(--muted); }
+  .pct-note { margin: 10px 0 0; color: var(--muted); }
+  .tug { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin-top: 14px; }
+  .tug span { display: block; height: 100%; transition: width .12s linear; }
+  .tug .a { background: var(--chase); }
+  .tug .b { background: var(--defend); }
+
+  dl.state { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  dl.state > div { padding: 14px 0; border-top: 1px solid var(--line); }
+  dl.state dt { font-size: 13px; color: var(--muted); }
+  dl.state dd { margin: 2px 0 0; font: 800 38px/1.05 var(--display); font-variant-numeric: tabular-nums; }
+  dl.state dd.result { font-size: 24px; }
+
+  /* chart + replay */
+  .stage { padding-top: 6px; }
+  .chart-box { position: relative; height: clamp(260px, 42vw, 380px); touch-action: pan-y; }
+  .replay { display: flex; align-items: center; gap: 14px; padding: 14px 0 6px; }
+  .replay button {
+    flex: none; width: 92px; padding: 9px 0; border: 0; border-radius: 6px; cursor: pointer;
+    background: var(--chase); color: #231600; font: 700 15px var(--body);
+  }
+  .replay input[type=range] { flex: 1; accent-color: var(--chase); height: 28px; }
+  .replay output { flex: none; width: 74px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* lower half */
+  .lower { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; padding: 34px 0 40px; }
+  h2 { margin: 0 0 6px; font: 800 28px/1.1 var(--display); letter-spacing: .01em; }
+  .hint { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+  ol.turns { list-style: none; margin: 0; padding: 0; }
+  ol.turns li { border-top: 1px solid var(--line); }
+  ol.turns button {
+    display: grid; grid-template-columns: 74px 1fr; gap: 14px; align-items: baseline; width: 100%; text-align: left;
+    background: none; border: 0; color: inherit; padding: 14px 4px; cursor: pointer; font: inherit; border-radius: 6px;
+  }
+  ol.turns button:hover { background: var(--panel); }
+  .turns .delta { font: 800 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .turns .up { color: var(--chase); }
+  .turns .down { color: var(--defend); }
+  .turns .what { color: var(--text); }
+  .turns .what small { display: block; color: var(--muted); font-size: 14px; }
+
+  .whatif { background: var(--panel); border-radius: 10px; padding: 22px; align-self: start; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0 18px; }
+  .fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .fields input, .fields select { background: var(--ink); width: 100%; }
+  .whatif .out { font: 900 64px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .whatif .out i { font-style: normal; font-size: 30px; color: var(--muted); }
+  .whatif .err { color: #ff8f7a; min-height: 1.4em; margin: 8px 0 0; font-size: 14px; }
+
+  footer { border-top: 1px solid var(--line); padding: 22px 0 44px; color: var(--muted); font-size: 14px; }
+  footer strong { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 760px) {
+    .hero, .lower { grid-template-columns: 1fr; gap: 24px; }
+    .hero { padding-top: 26px; }
+    dl.state dd { font-size: 32px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">Chase tracker<small>IPL second innings, win probability after every ball</small></div>
+    <div class="pickers">
+      <label>Season<select id="season"></select></label>
+      <label>Match<select id="match"></select></label>
+    </div>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <div class="fixture">
+      <h1 id="title">Loading match…</h1>
+      <p id="venue"></p>
+      <div class="pct"><b id="pct">--</b><i>%</i></div>
+      <p class="pct-note" id="pctNote">chance of winning the chase</p>
+      <div class="tug" aria-hidden="true"><span class="a" id="tugA" style="width:50%"></span><span class="b" id="tugB" style="width:50%"></span></div>
+    </div>
+    <dl class="state">
+      <div><dt>Score</dt><dd id="score">-</dd></div>
+      <div><dt>Over</dt><dd id="overNo">-</dd></div>
+      <div><dt>Runs needed</dt><dd id="need">-</dd></div>
+      <div><dt>Required rate</dt><dd id="rrr">-</dd></div>
+    </dl>
+  </section>
+
+  <section class="stage">
+    <div class="chart-box"><canvas id="chart" role="img" aria-label="Chasing team win probability across the innings"></canvas></div>
+    <div class="replay">
+      <button id="play" type="button">Replay</button>
+      <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Move through the chase ball by ball">
+      <output id="ballOut" for="scrub">0 balls</output>
+    </div>
+  </section>
+
+  <section class="lower">
+    <div>
+      <h2>Turning points</h2>
+      <p class="hint">The deliveries that moved the win chance the most. Select one to jump there.</p>
+      <ol class="turns" id="turns"></ol>
+    </div>
+    <div class="whatif">
+      <h2>Try a scenario</h2>
+      <p class="hint">Enter any match situation and the model returns the chasing side's chance.</p>
+      <div class="fields">
+        <label>Target<input id="t" type="number" value="180" min="1"></label>
+        <label>Runs scored<input id="r" type="number" value="90" min="0"></label>
+        <label>Legal balls bowled<input id="b" type="number" value="60" min="0" max="119"></label>
+        <label>Wickets fallen<input id="w" type="number" value="3" min="0" max="9"></label>
+        <label style="grid-column:1/-1">Venue<select id="vsel"></select></label>
+      </div>
+      <div class="out"><span id="whatifOut">--</span><i>%</i></div>
+      <div class="tug" aria-hidden="true"><span class="a" id="wA" style="width:50%"></span><span class="b" id="wB" style="width:50%"></span></div>
+      <p class="err" id="err" role="status"></p>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const AMBER = '#ffb43b', BLUE = '#35a7ff';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let chart, curve, pts = [], idx = 0, timer = null, DATA, MODEL;
+
+const j = async (url, opts) => { const r = await fetch(url, opts); if (!r.ok) throw new Error(r.status); return r.json(); };
+
+/* vertical cursor + marker that follows the replay position */
+const cursorPlugin = {
+  id: 'cursor',
+  afterDatasetsDraw(c) {
+    if (!pts.length) return;
+    const { ctx, chartArea: a, scales: { x, y } } = c;
+    const px = x.getPixelForValue(idx), py = y.getPixelForValue(pts[idx].win_prob * 100);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(233,241,247,.55)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = pts[idx].win_prob >= .5 ? AMBER : BLUE; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(px, py, 7, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+};
+
+/* The model runs in the browser: sum the leaf values of every tree, then apply the logistic function. */
+function predictJS(x) {
+  let m = MODEL.base_margin;
+  for (const t of MODEL.trees) {
+    let i = 0;
+    while (t.f[i] >= 0) i = Math.fround(x[t.f[i]]) < t.t[i] ? t.y[i] : t.n[i];   // XGBoost compares in float32
+    m += t.t[i];
+  }
+  return 1 / (1 + Math.exp(-m));
+}
+
+async function loadSeasons() {
+  [DATA, MODEL] = await Promise.all([j('/data/index.json'), j('/data/model.json')]);
+  MODEL.trees.forEach(t => { t.t = t.t.map(Math.fround); });
+  $('season').innerHTML = DATA.seasons.map(x => `<option>${x}</option>`).join('');
+  $('vsel').innerHTML = DATA.venues.map(v => `<option>${v}</option>`).join('');
+  await loadMatches();
+}
+
+async function loadMatches() {
+  const m = DATA.matches.filter(x => x.season === $('season').value);
+  $('match').innerHTML = m.map(x => `<option value="${x.id}">${x.date}: ${x.chasing} chasing ${x.target} v ${x.defending}</option>`).join('');
+  if (m.length) await loadMatch();
+}
+
+async function loadMatch() {
+  stop();
+  const c = await j('/data/curves/' + $('match').value + '.json');
+  curve = { chasing: c.ch, defending: c.df, target: c.tg, winner: c.wn, chasing_won: c.cw, venue: c.v, date: c.d };
+  pts = c.p.map((p, i) => ({ win_prob: p / 10000, runs: c.r[i], wickets: c.w[i], balls: c.b[i], wicket_fell: !!c.k[i], over: c.o[i] }));
+  if (MODEL.venues[c.v] !== undefined) { $('vsel').value = c.v; whatif(); }
+  idx = pts.length - 1;
+  $('scrub').max = pts.length - 1; $('scrub').value = idx;
+  $('title').innerHTML = `<span>${curve.chasing}</span> chasing ${curve.target}`;
+  $('venue').textContent = `Against ${curve.defending} at ${curve.venue}, ${curve.date}.`;
+  drawChart(); turningPoints(); render();
+}
+
+function drawChart() {
+  const data = {
+    labels: pts.map(p => p.over),
+    datasets: [
+      { label: 'Win probability', data: pts.map(p => p.win_prob * 100), borderColor: '#e9f1f7', borderWidth: 2.5, pointRadius: 0, tension: .15,
+        fill: { target: { value: 50 }, above: 'rgba(255,180,59,.30)', below: 'rgba(53,167,255,.30)' } },
+      { label: 'Wicket', data: pts.map(p => p.wicket_fell ? p.win_prob * 100 : null), showLine: false, pointStyle: 'rectRot',
+        pointRadius: 6, pointBackgroundColor: '#08141d', pointBorderColor: '#e9f1f7', pointBorderWidth: 2 }
+    ]
+  };
+  const options = {
+    responsive: true, maintainAspectRatio: false, animation: reduce ? false : { duration: 1100, easing: 'easeOutCubic' },
+    layout: { padding: { right: 6, top: 8 } },
+    events: [],   // pointer handled manually below
+    scales: {
+      y: { min: 0, max: 100, ticks: { stepSize: 25, color: '#8aa2b4', callback: v => v + '%' }, grid: { color: ctx => ctx.tick.value === 50 ? 'rgba(233,241,247,.4)' : '#1c3547' }, border: { display: false } },
+      x: { ticks: { color: '#8aa2b4', maxTicksLimit: 10, autoSkip: true, callback(v) { return Math.floor(parseFloat(this.getLabelForValue(v))) ; } },
+           grid: { display: false }, border: { color: '#1c3547' }, title: { display: true, text: 'Over', color: '#8aa2b4' } }
+    },
+    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+  };
+  if (chart) chart.destroy();
+  chart = new Chart($('chart'), { type: 'line', data, options, plugins: [cursorPlugin] });
+}
+
+function render() {
+  const p = pts[idx], last = idx === pts.length - 1;
+  const pct = p.win_prob * 100;
+  $('pct').textContent = pct >= 99.5 ? '100' : pct <= .5 ? '0' : pct.toFixed(0);
+  $('pct').style.color = pct >= 50 ? AMBER : BLUE;
+  $('pctNote').textContent = last
+    ? (curve.chasing_won ? `${curve.chasing} won the chase.` : `${curve.chasing} fell short.`)
+    : `chance that ${curve.chasing} win the chase`;
+  $('tugA').style.width = pct + '%'; $('tugB').style.width = (100 - pct) + '%';
+  const need = Math.max(curve.target - p.runs, 0), left = 120 - p.balls;
+  $('score').textContent = `${p.runs}/${p.wickets}`;
+  $('overNo').textContent = p.over;
+  $('need').textContent = need === 0 ? 'Done' : need;
+  $('rrr').textContent = need === 0 ? '-' : left > 0 ? (need * 6 / left).toFixed(1) : '-';
+  $('ballOut').textContent = `${p.balls} balls`;
+  $('scrub').value = idx;
+  if (chart) chart.draw();
+}
+
+function turningPoints() {
+  const moves = [];
+  for (let i = 1; i < pts.length - 1; i++) {   // skip the final ball: it just confirms the result
+    const d = pts[i].win_prob - pts[i - 1].win_prob, r = pts[i].runs - pts[i - 1].runs;
+    moves.push({ i, d, what: pts[i].wicket_fell ? 'Wicket' : r >= 6 ? 'Six' : r >= 4 ? 'Four' : r === 0 ? 'Dot ball' : r + ' runs' });
+  }
+  const top = moves.sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 4).filter(m => Math.abs(m.d) >= .02).sort((a, b) => a.i - b.i);
+  $('turns').innerHTML = top.length ? top.map(m => {
+    const p = pts[m.i], pts_ = Math.round(Math.abs(m.d) * 100), up = m.d > 0;
+    return `<li><button type="button" data-i="${m.i}">
+      <span class="delta ${up ? 'up' : 'down'}">${up ? '+' : '-'}${pts_}</span>
+      <span class="what">${m.what} in over ${p.over}<small>${curve.chasing} win chance ${up ? 'rose' : 'fell'} ${pts_} points, to ${Math.round(p.win_prob * 100)}%. Score ${p.runs}/${p.wickets}.</small></span>
+    </button></li>`; }).join('') : '<li><p class="hint">A steady chase with no single big swing.</p></li>';
+}
+
+function stop() { if (timer) { clearInterval(timer); timer = null; } $('play').textContent = 'Replay'; }
+function play() {
+  if (timer) return stop();
+  if (idx >= pts.length - 1) idx = 0;
+  $('play').textContent = 'Pause';
+  timer = setInterval(() => { if (idx >= pts.length - 1) return stop(); idx++; render(); }, 45);
+}
+
+/* interactions */
+$('season').onchange = loadMatches;
+$('match').onchange = loadMatch;
+$('play').onclick = play;
+$('scrub').oninput = e => { stop(); idx = +e.target.value; render(); };
+$('turns').onclick = e => { const b = e.target.closest('button'); if (b) { stop(); idx = +b.dataset.i; render(); window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); } };
+$('chart').addEventListener('pointermove', e => {
+  if (!chart || !pts.length) return;
+  const r = $('chart').getBoundingClientRect();
+  const v = Math.round(chart.scales.x.getValueForPixel(e.clientX - r.left));
+  if (!isNaN(v)) { stop(); idx = Math.max(0, Math.min(pts.length - 1, v)); render(); }
+});
+
+/* scenario calculator: live as you type */
+let debounce;
+function whatif() {
+  if (!MODEL) return;
+  const target = +$('t').value, runs = +$('r').value, balls = +$('b').value, wkts = +$('w').value;
+  if (!(target >= 1) || !(runs >= 0) || !(balls >= 0 && balls <= 119) || !(wkts >= 0 && wkts <= 9)) {
+    $('err').textContent = 'Check the inputs: balls bowled must be 0 to 119 and wickets fallen 0 to 9.'; return;
+  }
+  const left = target - runs, ballsLeft = 120 - balls;
+  const prob = left <= 0 ? 1 : predictJS([left, ballsLeft, 10 - wkts, runs * 6 / Math.max(balls, 1), left * 6 / ballsLeft, target, MODEL.venues[$('vsel').value] ?? -1]);
+  const p = prob * 100;
+  $('whatifOut').textContent = p.toFixed(0); $('whatifOut').style.color = p >= 50 ? AMBER : BLUE;
+  $('wA').style.width = p + '%'; $('wB').style.width = (100 - p) + '%'; $('err').textContent = '';
+}
+['t', 'r', 'b', 'w'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(whatif, 120); }));
+$('vsel').onchange = whatif;
+
+/* model facts */
+function modelFacts() {
+  const m = (DATA && DATA.metrics) || {};
+  if (m.brier == null) return;
+  $('foot').innerHTML = `<strong>About the model.</strong> XGBoost trained on ${m.train_balls.toLocaleString()} chase deliveries and tested on ${m.test_balls.toLocaleString()} deliveries from the ${m.test_seasons.join(' and ')} seasons, which it never saw in training. Brier score ${m.brier.toFixed(3)} against ${m.brier_baseline.toFixed(3)} for a constant guess (lower is better); log-loss ${m.log_loss.toFixed(3)} against ${m.log_loss_baseline.toFixed(3)}. The model runs in your browser, so the scenario box needs no server.`;
+}
+
+loadSeasons().then(() => { modelFacts(); whatif(); }).catch(e => { $('title').textContent = 'Could not load match data'; $('venue').textContent = 'Run python src/export_static.py, then reload.'; });
+</script>
+</body>
+</html>

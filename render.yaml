@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: chase-tracker
+    runtime: static
+    staticPublishPath: ./static
