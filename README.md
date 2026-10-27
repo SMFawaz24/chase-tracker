@@ -1,6 +1,8 @@
 # Cricket Win-Probability Engine
 
 Ball-by-ball data pipeline, XGBoost model, FastAPI service and web dashboard that predict the chasing team's win probability after every delivery of an IPL second innings.
+<img width="1026" height="832" alt="Screenshot 2026-10-25 141319" src="https://github.com/user-attachments/assets/fc32121c-e64a-4954-8134-1a8a6f719f11" />
+<img width="998" height="830" alt="Screenshot 2026-10-25 141335" src="https://github.com/user-attachments/assets/43fda39c-39d8-43af-b083-2785c9d29abb" />
 
 ## Pipeline
 Cricsheet JSON -> parse/validate (Pandas) -> Parquet / PostgreSQL (AWS RDS) -> feature engineering -> XGBoost -> FastAPI -> dashboard
