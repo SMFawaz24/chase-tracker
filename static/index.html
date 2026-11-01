@@ -105,6 +105,9 @@
     dl.state dd { font-size: 32px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .arcade-link { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 14px 0 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 14px; }
+  .arcade-link:hover { border-color: var(--chase); }
+  .arcade-link b { color: var(--chase); }
 </style>
 </head>
 <body>
@@ -116,6 +119,7 @@
       <label>Match<select id="match"></select></label>
     </div>
   </header>
+  <a class="arcade-link" href="/arcade/"><span><b>New:</b> Cricket Arcade, IPL trivia and a chance to beat this model</span><span aria-hidden="true">Play &rarr;</span></a>
 
   <section class="hero" aria-live="polite">
     <div class="fixture">
