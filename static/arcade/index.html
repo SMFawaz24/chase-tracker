@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Cricket arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #08141d; --panel: #0e2130; --line: #1c3547; --text: #e9f1f7; --muted: #8aa2b4;
+    --chase: #ffb43b; --defend: #35a7ff;
+    --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    --body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+  body { margin: 0; color: var(--text); background: var(--ink); font: 400 16px/1.55 var(--body); }
+  :focus-visible { outline: 2px solid var(--chase); outline-offset: 2px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 56px; }
+  a { color: var(--chase); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .brand { font: 800 26px/1 var(--display); letter-spacing: .02em; }
+  .bar a { font-size: 14px; }
+  .intro { margin: 26px 0 8px; color: var(--muted); max-width: 52ch; }
+
+  /* game list */
+  .games { list-style: none; margin: 8px 0 0; padding: 0; }
+  .games li { border-top: 1px solid var(--line); }
+  .games li:last-child { border-bottom: 1px solid var(--line); }
+  .games button { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; width: 100%; text-align: left; padding: 20px 6px; background: none; border: 0; border-radius: 6px; }
+  .games button:hover { background: var(--panel); }
+  .games h2 { margin: 0; font: 800 34px/1 var(--display); letter-spacing: .01em; }
+  .games p { margin: 0; color: var(--muted); grid-column: 1; }
+  .games .best { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font: 800 30px/1 var(--display); color: var(--chase); font-variant-numeric: tabular-nums; }
+  .games .best small { display: block; font: 400 13px var(--body); color: var(--muted); }
+
+  /* game chrome */
+  .hud { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 18px 0 10px; }
+  .hud .back { background: none; border: 0; color: var(--muted); padding: 4px 0; }
+  .hud .back:hover { color: var(--text); }
+  .hud .stat { font: 800 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .hud .stat small { font: 400 13px var(--body); color: var(--muted); margin-left: 6px; }
+  .progress { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 22px; }
+  .progress span { display: block; height: 100%; background: var(--chase); transition: width .25s; }
+
+  h3.q { margin: 0 0 18px; font: 800 clamp(26px, 5vw, 34px)/1.12 var(--display); letter-spacing: .01em; }
+  .opt { display: block; width: 100%; text-align: left; padding: 14px 16px; margin-bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; font-size: 17px; }
+  .opt:hover:not(:disabled) { border-color: var(--chase); }
+  .opt:disabled { cursor: default; }
+  .opt.right { background: var(--chase); color: #231600; border-color: var(--chase); font-weight: 700; }
+  .opt.wrong { border-color: var(--defend); background: rgba(53,167,255,.16); }
+  .opt.wrong::after { content: "  Your pick"; color: var(--defend); font-size: 13px; }
+  .feedback { margin: 14px 0 0; min-height: 1.5em; }
+  .feedback .verdict { font: 800 24px/1.1 var(--display); }
+  .feedback .good { color: var(--chase); }
+  .feedback .bad { color: var(--defend); }
+  .feedback p { margin: 6px 0 0; color: var(--muted); }
+  details.how { margin-top: 10px; color: var(--muted); font-size: 14px; }
+  details.how code { display: block; white-space: pre-wrap; word-break: break-word; margin-top: 6px; padding: 10px; background: var(--panel); border-radius: 6px; color: var(--text); font: 13px/1.5 ui-monospace, Consolas, monospace; }
+  .primary { margin-top: 18px; padding: 12px 22px; border: 0; border-radius: 8px; background: var(--chase); color: #231600; font-weight: 700; }
+  .secondary { margin-top: 18px; padding: 12px 22px; border: 1px solid var(--line); border-radius: 8px; background: none; }
+  .secondary:hover { border-color: var(--text); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* higher or lower */
+  .duel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .side { padding: 20px 16px; border-top: 3px solid var(--line); background: var(--panel); border-radius: 0 0 8px 8px; min-height: 190px; }
+  .side.known { border-top-color: var(--chase); }
+  .side.hidden-val { border-top-color: var(--defend); }
+  .side .nm { font: 800 28px/1.05 var(--display); overflow-wrap: anywhere; }
+  .side .ctx { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .side .val { margin-top: 14px; font: 900 60px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .side.known .val { color: var(--chase); }
+  .side.hidden-val .val { color: var(--defend); }
+  .side.reveal-good .val { color: var(--chase); }
+  .side.reveal-bad .val { color: var(--defend); }
+  .guessbar .opt { display: inline-block; width: auto; min-width: 150px; text-align: center; margin-right: 10px; }
+
+  /* clues */
+  ol.clues { list-style: none; counter-reset: c; margin: 0 0 16px; padding: 0; }
+  ol.clues li { counter-increment: c; position: relative; padding: 12px 0 12px 48px; border-top: 1px solid var(--line); }
+  ol.clues li::before { content: counter(c); position: absolute; left: 4px; top: 10px; width: 28px; height: 28px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); text-align: center; font: 800 16px/26px var(--display); color: var(--chase); }
+  .guessrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .guessrow input { flex: 1 1 220px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; }
+  .worth { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+  .shake { animation: shake .3s; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  /* chase predictor */
+  .scene { padding: 18px; background: var(--panel); border-radius: 10px; margin-bottom: 18px; }
+  .scene .big { font: 800 clamp(28px, 6vw, 40px)/1.1 var(--display); }
+  .scene .big b { color: var(--chase); font-weight: 800; }
+  .scene p { margin: 8px 0 0; color: var(--muted); }
+  .slider { margin: 6px 0 8px; }
+  .slider input { width: 100%; accent-color: var(--chase); height: 30px; }
+  .slider .readout { font: 900 56px/1 var(--display); color: var(--chase); font-variant-numeric: tabular-nums; }
+  .slider .readout small { font-size: 28px; color: var(--muted); }
+  .compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+  .compare div { border-top: 3px solid var(--line); padding-top: 8px; }
+  .compare .you { border-top-color: var(--chase); }
+  .compare .mdl { border-top-color: var(--defend); }
+  .compare b { display: block; font: 900 36px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .compare span { color: var(--muted); font-size: 13px; }
+
+  .end { padding: 8px 0; }
+  .end .final { font: 900 clamp(80px, 22vw, 150px)/.9 var(--display); color: var(--chase); font-variant-numeric: tabular-nums; }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  @media (max-width: 560px) { .duel { grid-template-columns: 1fr; } .compare { grid-template-columns: 1fr 1fr 1fr; } .side { min-height: 0; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">Cricket arcade</div>
+    <a href="/">Chase tracker</a>
+  </header>
+  <main id="stage" aria-live="polite"><p class="intro">Loading the question bank...</p></main>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+let bank;
+const stage = document.getElementById('stage');
+
+/* ---------- small helpers (all page text goes through textContent, never innerHTML) ---------- */
+function el(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v === false || v == null) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) e.append(kid && kid.nodeType ? kid : document.createTextNode(kid ?? ''));
+  return e;
+}
+const show = (...nodes) => { stage.replaceChildren(...nodes.flat()); window.scrollTo(0, 0); };
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function getBest(g) { try { return +localStorage.getItem('arcade:best:' + g) || 0; } catch (e) { return 0; } }
+function saveBest(g, v) { try { if (v > getBest(g)) { localStorage.setItem('arcade:best:' + g, v); return true; } } catch (e) {} return false; }
+
+function hud(label, score, extra, onBack) {
+  return el('div', { class: 'hud' },
+    el('button', { class: 'back', onclick: onBack || menu }, 'All games'),
+    el('div', { class: 'stat' }, fmt(score), el('small', {}, label + (extra ? ' · ' + extra : ''))));
+}
+const progress = frac => el('div', { class: 'progress' }, el('span', { style: `width:${Math.round(frac * 100)}%` }));
+
+function endScreen(game, title, score, detail, again) {
+  const isBest = saveBest(game, score);
+  const text = `I scored ${fmt(score)} in ${title} on Cricket arcade. Can you beat it? ${location.href.split('?')[0]}`;
+  const copied = el('span', { class: 'worth', 'aria-live': 'polite' });
+  show(el('div', { class: 'end' },
+    el('div', { class: 'worth' }, title),
+    el('div', { class: 'final' }, fmt(score)),
+    el('p', {}, isBest ? 'New personal best.' : `Your best is ${fmt(getBest(game))}.`, ' ', detail || ''),
+    el('div', { class: 'row' },
+      el('button', { class: 'primary', onclick: again }, 'Play again'),
+      el('button', { class: 'secondary', onclick: async () => { try { await navigator.clipboard.writeText(text); copied.textContent = 'Copied.'; } catch (e) { copied.textContent = text; } } }, 'Copy my score'),
+      el('button', { class: 'secondary', onclick: menu }, 'All games')),
+    copied));
+}
+
+/* ---------- menu ---------- */
+function menu() {
+  const games = [
+    ['quiz', 'Quick quiz', '10 questions on records, seasons and league leaders.', bank.quiz.length, quiz],
+    ['hl', 'Higher or lower', 'Who had more? Keep the streak alive.', bank.higher_lower.length, higherLower],
+    ['guess', 'Guess the player', 'Six clues. The fewer you need, the more you score.', bank.players.length, guess],
+    ['chase', 'Chase predictor', 'Real chases frozen mid-innings. Can you beat the model?', bank.chase.length, chase],
+  ].filter(g => g[3] > 0);
+  show(
+    el('p', { class: 'intro' }, 'Four quick games built from every IPL ball bowled. Each answer is checked against the data before it reaches you.'),
+    el('ul', { class: 'games' }, games.map(([id, title, blurb, , run]) => el('li', {},
+      el('button', { onclick: run },
+        el('h2', {}, title), el('p', {}, blurb),
+        el('div', { class: 'best' }, getBest(id) ? fmt(getBest(id)) : '-', el('small', {}, 'best')))))));
+}
+
+/* ---------- quick quiz ---------- */
+function quiz() {
+  const qs = shuffle(bank.quiz).slice(0, 10);
+  let i = 0, score = 0, streak = 0, right = 0;
+  const render = () => {
+    const q = qs[i];
+    let done = false;
+    const feedback = el('div', { class: 'feedback' });
+    const next = el('button', { class: 'primary hidden', onclick: () => { i++; i < qs.length ? render() : endScreen('quiz', 'Quick quiz', score, `${right} of ${qs.length} correct.`, quiz); } },
+      i === qs.length - 1 ? 'See result' : 'Next question');
+    const buttons = q.options.map((o, k) => el('button', { class: 'opt', onclick: () => choose(k) }, o));
+    function choose(k) {
+      if (done) return; done = true;
+      const ok = k === q.answer;
+      streak = ok ? streak + 1 : 0;
+      const pts = ok ? 10 + 2 * Math.min(streak - 1, 5) : 0;
+      score += pts; right += ok ? 1 : 0;
+      buttons.forEach((b, j) => { b.disabled = true; if (j === q.answer) b.classList.add('right'); else if (j === k) b.classList.add('wrong'); });
+      feedback.replaceChildren(
+        el('div', { class: 'verdict ' + (ok ? 'good' : 'bad') }, ok ? `Correct. +${pts}` : 'Not this time.'),
+        el('p', {}, q.explain, q.fun_fact ? ' ' + q.fun_fact : ''),
+        q.sql ? el('details', { class: 'how' }, el('summary', {}, 'How we know'), el('code', {}, q.sql)) : null);
+      next.classList.remove('hidden'); next.focus();
+      document.querySelector('.hud .stat').firstChild.textContent = fmt(score);
+    }
+    show(hud('points', score, `question ${i + 1} of ${qs.length}`), progress(i / qs.length), el('h3', { class: 'q' }, q.q), buttons, feedback, next);
+  };
+  render();
+}
+
+/* ---------- higher or lower: chains built from verified values in the bank ---------- */
+function higherLower() {
+  const pool = {};
+  for (const it of bank.higher_lower) for (const s of [it.a, it.b]) (pool[it.metric + '|' + (/career/i.test(s.ctx) ? 'career' : 'season')] ||= []).push({ ...s, metric: it.metric, key: it.metric + '|' + (/career/i.test(s.ctx) ? 'career' : 'season') });
+  const metrics = Object.keys(pool);
+  const label = e => `${e.metric} · ${e.ctx}`;
+  let score = 0, left;
+  const draw = (exclude) => { for (let t = 0; t < 200; t++) { const c = pick(pool[exclude.key]); if (c.name !== exclude.name && c.value !== exclude.value) return c; } return pick(pool[exclude.key]); };
+  const start = () => { const m = pick(metrics); left = pick(pool[m]); round(); };
+  const round = () => {
+    const right = draw(left);
+    const rv = el('div', { class: 'val' }, '?');
+    const rside = el('div', { class: 'side hidden-val' }, el('div', { class: 'nm' }, right.name), el('div', { class: 'ctx' }, label(right)), rv);
+    const msg = el('div', { class: 'feedback' });
+    const bar = el('div', { class: 'guessbar' });
+    const guess = higher => {
+      bar.replaceChildren();
+      const ok = (right.value > left.value) === higher;
+      rv.textContent = fmt(right.value);
+      rside.classList.remove('hidden-val'); rside.classList.add(ok ? 'reveal-good' : 'reveal-bad');
+      if (ok) {
+        score += 1;
+        msg.replaceChildren(el('div', { class: 'verdict good' }, 'Correct.'));
+        document.querySelector('.hud .stat').firstChild.textContent = fmt(score);
+        bar.replaceChildren(el('button', { class: 'primary', onclick: () => { left = right; round(); } }, 'Next'));
+        bar.firstChild.focus();
+      } else {
+        msg.replaceChildren(el('div', { class: 'verdict bad' }, 'Wrong.'), el('p', {}, `${right.name} had ${fmt(right.value)}, ${right.value > left.value ? 'more' : 'less'} than ${left.name} on ${fmt(left.value)}.`));
+        bar.replaceChildren(el('button', { class: 'primary', onclick: () => endScreen('hl', 'Higher or lower', score, `A streak of ${score}.`, higherLower) }, 'See result'));
+        bar.firstChild.focus();
+      }
+    };
+    bar.append(el('button', { class: 'opt', onclick: () => guess(true) }, 'Higher'), el('button', { class: 'opt', onclick: () => guess(false) }, 'Lower'));
+    show(hud('streak', score), progress(0),
+      el('h3', { class: 'q' }, `Did ${right.name} have more or fewer ${right.metric} than ${left.name}?`),
+      el('div', { class: 'duel' },
+        el('div', { class: 'side known' }, el('div', { class: 'nm' }, left.name), el('div', { class: 'ctx' }, label(left)), el('div', { class: 'val' }, fmt(left.value))), rside),
+      el('div', { style: 'margin-top:18px' }, bar), msg);
+    document.querySelector('.progress').remove();
+  };
+  start();
+}
+
+/* ---------- guess the player ---------- */
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+function surname(name) { const p = name.split(' '); return p.filter((t, i) => !(t === t.toUpperCase() && t.length <= 3 && i < p.length - 1)).join(' '); }
+function matches(guess, answer) {
+  const g = norm(guess); if (!g) return false;
+  if (g === norm(answer)) return true;
+  const sur = norm(surname(answer));
+  return g === sur && bank.names.filter(n => norm(surname(n)) === sur).length <= 1;
+}
+function guess() {
+  const rounds = shuffle(bank.players).slice(0, 5), worth = [100, 70, 45, 25, 10, 5];
+  let r = 0, score = 0, found = 0;
+  const play = () => {
+    const p = rounds[r];
+    let shown = 1, over = false;
+    const list = el('ol', { class: 'clues' });
+    const note = el('p', { class: 'worth' });
+    const feedback = el('div', { class: 'feedback' });
+    const input = el('input', { type: 'text', placeholder: 'Type a player name', list: 'names', autocomplete: 'off', 'aria-label': 'Your guess' });
+    const datalist = el('datalist', { id: 'names' }, bank.names.map(n => el('option', { value: n })));
+    const submit = el('button', { class: 'primary', style: 'margin-top:0' }, 'Guess');
+    const reveal = el('button', { class: 'secondary', style: 'margin-top:0' }, 'Next clue');
+    const giveUp = el('button', { class: 'secondary', style: 'margin-top:0' }, 'Give up');
+    const next = el('button', { class: 'primary hidden', onclick: () => { r++; r < rounds.length ? play() : endScreen('guess', 'Guess the player', score, `${found} of ${rounds.length} found.`, guess); } }, r === rounds.length - 1 ? 'See result' : 'Next player');
+    const refresh = () => {
+      list.replaceChildren(...p.clues.slice(0, shown).map(c => el('li', {}, c)));
+      note.textContent = over ? '' : `Worth ${worth[shown - 1]} points now.`;
+      reveal.classList.toggle('hidden', shown >= p.clues.length);
+    };
+    const finish = (won) => {
+      over = true;
+      const pts = won ? worth[shown - 1] : 0;
+      score += pts; found += won ? 1 : 0;
+      [input, submit, reveal, giveUp].forEach(x => x.setAttribute('disabled', ''));
+      feedback.replaceChildren(el('div', { class: 'verdict ' + (won ? 'good' : 'bad') }, won ? `Yes, ${p.answer}. +${pts}` : `It was ${p.answer}.`));
+      next.classList.remove('hidden'); next.focus(); refresh();
+      document.querySelector('.hud .stat').firstChild.textContent = fmt(score);
+    };
+    const tryGuess = () => {
+      if (over || !input.value.trim()) return;
+      if (matches(input.value, p.answer)) return finish(true);
+      input.classList.remove('shake'); void input.offsetWidth; input.classList.add('shake');
+      feedback.replaceChildren(el('div', { class: 'verdict bad' }, 'Not that one.'));
+      if (shown < p.clues.length) { shown++; refresh(); } else finish(false);
+      input.value = ''; input.focus();
+    };
+    submit.onclick = tryGuess; input.onkeydown = e => { if (e.key === 'Enter') tryGuess(); };
+    reveal.onclick = () => { shown++; refresh(); };
+    giveUp.onclick = () => finish(false);
+    show(hud('points', score, `player ${r + 1} of ${rounds.length}`), progress(r / rounds.length), list, note,
+      el('div', { class: 'guessrow' }, input, submit, reveal, giveUp), datalist, feedback, next);
+    refresh(); input.focus();
+  };
+  play();
+}
+
+/* ---------- chase predictor ---------- */
+function chase() {
+  const rounds = shuffle(bank.chase).slice(0, 8);
+  let r = 0, you = 0, model = 0, beat = 0;
+  const pts = (g, y) => Math.round(100 * (1 - (g - y) ** 2));
+  const play = () => {
+    const c = rounds[r];
+    const need = c.target - c.runs, left = 120 - c.balls;
+    const overs = `${Math.floor(c.balls / 6)}.${c.balls % 6}`;
+    const readout = el('div', { class: 'readout' }, '50', el('small', {}, '%'));
+    const slider = el('input', { type: 'range', min: 0, max: 100, value: 50, 'aria-label': `Chance that ${c.chasing} win` });
+    slider.oninput = () => { readout.firstChild.textContent = slider.value; };
+    const result = el('div', { class: 'feedback' });
+    const lock = el('button', { class: 'primary' }, 'Lock it in');
+    const next = el('button', { class: 'primary hidden', onclick: () => { r++; r < rounds.length ? play() : endScreen('chase', 'Chase predictor', you, `The model scored ${fmt(model)}; you beat it in ${beat} of ${rounds.length} rounds.`, chase); } },
+      r === rounds.length - 1 ? 'See result' : 'Next chase');
+    lock.onclick = () => {
+      slider.setAttribute('disabled', ''); lock.classList.add('hidden');
+      const g = slider.value / 100, y = c.won ? 1 : 0, mine = pts(g, y), theirs = pts(c.p, y);
+      you += mine; model += theirs; beat += mine > theirs ? 1 : 0;
+      const finish = c.won ? `${c.chasing} won, finishing on ${c.final_runs}/${c.final_wickets}.`
+        : `${c.chasing} fell short, finishing on ${c.final_runs}/${c.final_wickets} (target ${c.target}).`;
+      result.replaceChildren(
+        el('div', { class: 'verdict ' + (c.won ? 'good' : 'bad') }, finish),
+        el('div', { class: 'compare' },
+          el('div', { class: 'you' }, el('b', {}, `${Math.round(g * 100)}%`), el('span', {}, `You: ${mine} pts`)),
+          el('div', { class: 'mdl' }, el('b', {}, `${Math.round(c.p * 100)}%`), el('span', {}, `Model: ${theirs} pts`)),
+          el('div', {}, el('b', {}, fmt(you)), el('span', {}, `Total vs model ${fmt(model)}`))));
+      next.classList.remove('hidden'); next.focus();
+      document.querySelector('.hud .stat').firstChild.textContent = fmt(you);
+    };
+    show(hud('points', you, `chase ${r + 1} of ${rounds.length}`), progress(r / rounds.length),
+      el('div', { class: 'scene' },
+        el('div', { class: 'big' }, el('b', {}, c.chasing), ` need ${need} more from ${left} balls with ${10 - c.wickets} wickets in hand`),
+        el('p', {}, `Chasing ${c.target} against ${c.defending}. ${c.runs}/${c.wickets} after ${overs} overs. ${c.venue}, IPL ${c.season}.`)),
+      el('div', { class: 'slider' }, el('div', { class: 'worth' }, `How likely is it that ${c.chasing} win?`), readout, slider), lock, result, next);
+  };
+  play();
+}
+
+/* ---------- start ---------- */
+fetch('bank.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(b => {
+  bank = b; menu();
+  const m = b.meta, v = m.validation || {}, parts = [`Built ${m.generated} from IPL ball-by-ball data.`];
+  if (m.mode === 'llm' && m.llm) {
+    const tot = Object.values(v).reduce((s, x) => ({ a: s.a + x.attempted, k: s.k + x.accepted }), { a: 0, k: 0 });
+    parts.push(`Wording and extra questions written by ${m.llm.model}; ${tot.k} of ${tot.a} LLM outputs passed the data checks, the rest were discarded.`);
+  } else parts.push('Questions are generated straight from the data.');
+  document.getElementById('foot').textContent = parts.join(' ');
+}).catch(() => {
+  stage.replaceChildren(el('p', { class: 'intro' }, 'Could not load the question bank. Run python arcade/build_bank.py, then reload.'));
+});
+</script>
+</body>
+</html>

@@ -49,6 +49,8 @@ def parse_match(match_id: str, data: dict) -> list[dict]:
                         "runs_total": d["runs"]["total"],
                         "is_legal": not ("wides" in extras or "noballs" in extras),
                         "is_wicket": int("wickets" in d),
+                        "wicket_kind": d["wickets"][0].get("kind") if "wickets" in d else None,
+                        "player_out": d["wickets"][0].get("player_out") if "wickets" in d else None,
                         "target": target,
                         "winner": winner,
                     }
